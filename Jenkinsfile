@@ -1,50 +1,60 @@
 pipeline {
     agent any
-    environment {
-        NEXUS_VERSION = "nexus3"
-        NEXUS_PROTOCOL = "http"
-        NEXUS_URL = "0.0.0.0:8081"
-        NEXUS_REPOSITORY = "java-app"
-        NEXUS_CREDENTIAL_ID = "Nexus_ID"
-    }
-    stages {
-        stage("Clone code from GitHub") {
-            steps {
-                git branch: 'main', url: 'https://github.com/Salhianis1/nexus-jenkins.git'
-            }
-        }
-        stage("Maven Build") {
-            steps {
-                sh "mvn package -DskipTests=true"
-            }
-        }
-        stage("Publish to Nexus Repository Manager") {
-            steps {
-                script {
-                    def pom = readMavenPom file: "pom.xml"
-                    def filesByGlob = findFiles(glob: "target/*.${pom.packaging}")
-                    def artifactPath = filesByGlob[0].path
 
-                    if (fileExists(artifactPath)) {
-                        echo "*** File: ${artifactPath}, group: ${pom.groupId}, packaging: ${pom.packaging}, version ${pom.version}"
-                        nexusArtifactUploader(
-                            nexusVersion: env.NEXUS_VERSION,
-                            protocol: env.NEXUS_PROTOCOL,
-                            nexusUrl: env.NEXUS_URL,
-                            groupId: pom.groupId,
-                            version: pom.version,
-                            repository: env.NEXUS_REPOSITORY,
-                            credentialsId: env.NEXUS_CREDENTIAL_ID,
-                            artifacts: [
-                                [artifactId: pom.artifactId, classifier: '', file: artifactPath, type: pom.packaging],
-                                [artifactId: pom.artifactId, classifier: '', file: "pom.xml", type: "pom"]
-                            ]
-                        )
-                    } else {
-                        error "*** File: ${artifactPath}, could not be found"
-                    }
-                }
+    tools {
+        maven 'Maven 3.8.1' // Set this to your Maven installation in Jenkins
+        jdk 'JDK 11'         // Set this to your configured JDK version
+    }
+
+    environment {
+        // These are Jenkins credentials IDs
+        OSSRH_USERNAME = credentials('sonatypeUsername')
+        OSSRH_PASSWORD = credentials('sonatypePassword')
+        GPG_PASSPHRASE = credentials('gpg.passphrase')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
             }
+        }
+
+        stage('Build & Test') {
+            steps {
+                sh 'mvn clean verify'
+            }
+        }
+
+        stage('Deploy to OSSRH') {
+            when {
+                branch 'main'
+            }
+            steps {
+                sh """
+                    mvn clean deploy -Psign-artifacts,ossrh-deploy \\
+                        -Dgpg.passphrase=$GPG_PASSPHRASE \\
+                        -Dgpg.skip=false \\
+                        -DskipTests=false
+                """
+            }
+        }
+
+        stage('Archive Artifacts') {
+            steps {
+                archiveArtifacts artifacts: 'target/*.jar', allowEmptyArchive: true
+            }
+        }
+    }
+
+    post {
+        always {
+            junit 'target/surefire-reports/*.xml'
+        }
+        failure {
+            mail to: 'dev-team@example.com',
+                 subject: "Build failed: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
+                 body: "See Jenkins for details: ${env.BUILD_URL}"
         }
     }
 }
