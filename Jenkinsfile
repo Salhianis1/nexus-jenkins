@@ -10,11 +10,21 @@ pipeline {
         NEXUS_REPOSITORY = "repo"
         NEXUS_CREDENTIAL_ID = "nexus_id"
     }
+    parameters {
+        string(name: 'RELEASE_VERSION', defaultValue: '1.0.${BUILD_NUMBER}', description: 'Version to release')
+    }
     stages {
         stage("Clone code from GitHub") {
             steps {
                 script {
-                    git branch: 'main', url: 'https://github.com/Salhianis1/nexus-jenkins.git';
+                    git branch: 'main', url: 'https://github.com/Salhianis1/jenkins-nexus.git';
+                }
+            }
+        }
+        stage("Set Maven Version") {
+            steps {
+                script {
+                    sh "mvn versions:set -DnewVersion=${params.RELEASE_VERSION}"
                 }
             }
         }
@@ -34,13 +44,13 @@ pipeline {
                     artifactPath = filesByGlob[0].path;
                     artifactExists = fileExists artifactPath;
                     if(artifactExists) {
-                        echo "*** File: ${artifactPath}, group: ${pom.groupId}, packaging: ${pom.packaging}, version ${pom.version}";
+                        echo "*** File: ${artifactPath}, group: ${pom.groupId}, packaging: ${pom.packaging}, version ${params.RELEASE_VERSION}";
                         nexusArtifactUploader(
                             nexusVersion: NEXUS_VERSION,
                             protocol: NEXUS_PROTOCOL,
                             nexusUrl: NEXUS_URL,
                             groupId: pom.groupId,
-                            version: pom.version,
+                            version: params.RELEASE_VERSION,
                             repository: NEXUS_REPOSITORY,
                             credentialsId: NEXUS_CREDENTIAL_ID,
                             artifacts: [
