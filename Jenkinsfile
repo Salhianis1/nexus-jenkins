@@ -1,8 +1,5 @@
 pipeline {
     agent any
-    tools {
-        maven "MAVEN"
-    }
     environment {
         NEXUS_VERSION = "nexus3"
         NEXUS_PROTOCOL = "http"
@@ -13,7 +10,6 @@ pipeline {
     stages {
         stage("Clone code from GitHub") {
             steps {
-                // No credentials needed for public repo
                 git branch: 'main', url: 'https://github.com/Salhianis1/nexus-jenkins.git'
             }
         }
