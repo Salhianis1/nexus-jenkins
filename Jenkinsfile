@@ -40,13 +40,13 @@ pipeline {
 
                     if (fileExists(artifactPath)) {
                         nexusArtifactUploader(
-                            nexusVersion: NEXUS_VERSION,
-                            protocol: NEXUS_PROTOCOL,
-                            nexusUrl: NEXUS_URL,
+                            nexusVersion: 'nexus3',
+                            protocol: 'http',
+                            nexusUrl: 'http://0.0.0.0:8081',
                             groupId: pom.groupId,
                             version: pom.version,
-                            repository: NEXUS_REPOSITORY,
-                            credentialsId: NEXUS_CREDENTIAL_ID,
+                            repository: repo,
+                            credentialsId: Nexus_ID,
                             artifacts: [
                                 [
                                     artifactId: pom.artifactId,
